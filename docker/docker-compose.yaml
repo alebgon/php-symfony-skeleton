@@ -1,0 +1,115 @@
+services:
+  php-cli-abstract:
+    image: ghcr.io/alebgon/base-php-cli-8.4
+    env_file:
+      - .env
+    volumes:
+      - ../app:/var/www
+      - ~/.ssh:/root/.ssh
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    networks:
+      - app-network
+
+  php-cli-test-abstract:
+    extends:
+      service: php-cli-abstract
+    build:
+      context: ../app/tests
+      dockerfile: Dockerfile.php-cli
+    environment:
+      APP_ENV: testing
+      CACHE_DRIVER: array
+      DB_CONNECTION: sqlite
+      DB_DATABASE: ":memory:"
+      SESSION_DRIVER: array
+
+  php-cli:
+    extends:
+      service: php-cli-abstract
+    env_file:
+      - .env
+    tty: true
+    depends_on:
+      - db
+
+  php-cli-xdebug:
+    extends:
+      service: php-cli-abstract
+    environment:
+      XDEBUG_MODE: debug
+      PHP_IDE_CONFIG: "serverName=docker-cli"
+    depends_on:
+      - db
+
+  php-cli-test:
+    extends:
+      service: php-cli-test-abstract
+    environment:
+      XDEBUG_MODE: off
+    depends_on:
+      - db
+
+  php-cli-test-coverage:
+    extends:
+      service: php-cli-test-abstract
+    environment:
+      XDEBUG_MODE: coverage,develop
+    depends_on:
+      - db
+
+  php-cli-test-xdebug:
+    extends:
+      service: php-cli-test-abstract
+    environment:
+      PHP_IDE_CONFIG: "serverName=docker-cli"
+      XDEBUG_MODE: debug,coverage,develop
+    depends_on:
+      - db
+
+  composer:
+    extends:
+      service: php-cli-abstract
+    depends_on:
+      - db
+
+  php-fpm:
+    image: ghcr.io/alebgon/base-php-fpm-8.4
+    volumes:
+      - ../app:/var/www
+    env_file:
+      - .env
+    depends_on:
+      - db
+    networks:
+      - app-network
+
+  nginx:
+    image: ghcr.io/alebgon/base-nginx-1.26
+    ports:
+      - "80:80"
+    volumes:
+      - ../app:/var/www:ro
+      - ./nginx.conf:/etc/nginx/conf.d/default.conf:ro
+    depends_on:
+      - php-fpm
+    networks:
+      - app-network
+
+  db:
+    image: mariadb:10.11
+    environment:
+      MYSQL_ROOT_PASSWORD: root
+      MYSQL_DATABASE: app
+    volumes:
+      - app-db-data:/var/lib/mysql
+    ports:
+      - "3306:3306"
+    networks:
+      - app-network
+
+networks:
+  app-network:
+
+volumes:
+  app-db-data:

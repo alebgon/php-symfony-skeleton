@@ -1,0 +1,4 @@
+FROM ghcr.io/alebgon/base-php-cli-8.4
+
+RUN apk update && apk upgrade
+RUN apk add --no-cache sqlite

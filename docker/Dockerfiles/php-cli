@@ -1,0 +1,5 @@
+FROM --platform=$BUILDPLATFORM ghcr.io/alebgon/base-php-cli-8.4
+
+COPY app /var/www
+
+WORKDIR /var/www
